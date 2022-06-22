@@ -1,41 +1,25 @@
-
-/**
- * This class defines the taskes that are to be performed by the Worker Threads in the ThreadPool.
- */
-
-
 public class Task {
+    // Add two variables
+    public static int addition(int x, int y) {
+        return x + y;
+    }
     
-   
-	
-	/**
-	 * Add two variables
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	public double addition(double x,double y){
-		return x+y;
-	}
-	
-	/**
-	 * Multiply two variables
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	 public double multiplication(double x,double y){
-		 return x*y;
-	 }
-	
-	 /**
-	  * Subtract two variables
-	  * @param x
-	  * @param y
-	  * @return
-	  */
-	 public double subtraction(double x,double y){
-		 return x-y;
-	 }
+    // Multiply two variables
+    public static int multiplication(int x, int y) {
+        return x * y;
+    }
+    
+    //Subtract two variables
+    public static int subtraction(int x, int y) {
+        return x - y;
+    }
 
+    public static int performTask(String operation, int x, int y) {
+        switch(operation) {
+            case "add": return addition(x, y);
+            case "subtract": return subtraction(x, y);
+            case "multiply": return multiplication(x, y);
+            default: return -1;
+        }
+    }
 }

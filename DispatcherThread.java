@@ -1,88 +1,88 @@
-
-/*
- * The DispatcherThread class takes the input and delegates the task to the worker threads.
- * It also creates a fixed pool of threads which can perform the tasks assigned by the dispatcher.
- */
-
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.io.BufferedReader;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
 
+// reference: https://github.com/krimamshah/DispatcherWorkerModel
 
 public class DispatcherThread extends Thread {
-    
-	//Variables
+    private ServerSocket server;
+    private int clientId = 0;
+    private boolean isServer = true;
+    private BufferedReader buffer;
+    // we define a dipatcher thread with 5 worker threads only. (for demonstration)
+    private ExecutorService executor = Executors.newFixedThreadPool(5);
 
-	Runnable worker;
-	ExecutorService executor = Executors.newFixedThreadPool(5);
-	private final BlockingQueue<String> taskQueue = new LinkedBlockingQueue<String>();
-	private boolean empty = true;
-	BufferedReader br;
-	private String line;
-	DispatcherWorkerMain display = new DispatcherWorkerMain();
-        
-    /**
-     * The constructor the BufferReader object which reads the input file.    
-     * @param br
-     * @throws IOException
-     */
-	public DispatcherThread(BufferedReader br) throws IOException{
-		  this.br = br;
-		
-	}
-	
-	
-	/**
-	 * The method is called when the dispatcher thread is created
-	 */
-	@Override
-	public synchronized void run(){
-		
-                display.setVisible(true);             // sets the frame visible property to null.
-                display.setLocationRelativeTo(null); // sets the frame location at the centre of the screen.
-   
-		try {
-			//if the queue is full the dispatcher sleeps untill the queue gets empty
-		while(!empty){
-			System.out.println("I am sleeping");
-			wait();
-		}
-		
-		//when the queue gets empty it puts the task in the blocking queue and wakes up the sleeping worker threads.
-		empty = false;       
-		notify();
-                   
-		line = br.readLine();
-	    while(line!=null){	
-			taskQueue.put(line);                      //put the task in the queue
-            display.setDispatcherText(line+"\n");     //display the blocking queue
-			Thread.sleep(1000);
-                        
-			worker = new WorkerThread(taskQueue,display);  //create the worker thread
-                       
-			executor.execute(worker);                     //execute the worker thread
-                        
-			line = br.readLine();
-		}
-		
-		
-	executor.shutdown();                                //initiates shutdown in which previously submitted tasks are executed, but no new tasks will be accepted
-	
-	//Blocks until all tasks have completed execution after a shutdown request, 
-	//or the timeout occurs, or the current thread is interrupted, whichever happens first
-	executor.awaitTermination(5000,TimeUnit.MILLISECONDS);
-	
-	} catch (InterruptedException | IOException e) {
-			e.printStackTrace();
-		}
-		
-	}
-        
-	
+    public DispatcherThread(ServerSocket serverSocket) {
+          this.server = serverSocket;    
+    }
+
+    public DispatcherThread(BufferedReader buffer) {
+          this.buffer = buffer;
+          this.isServer = false;    
+    }
+
+    private void runServer() throws IOException {
+        while (true) {
+            // socket object to receive incoming client
+            // requests
+            Socket client = server.accept();
+
+            // Displaying that new client is connected
+            // to server
+            System.out.printf(
+                "New client connected %s, assigned ClientID-%d.\n", 
+                client.getInetAddress().getHostName(), 
+                clientId
+                );
+
+            // create a new thread object
+            WorkerThread worker = new WorkerThread(client, clientId);
+
+            clientId++;
+
+            // This thread will handle the client
+            // separately
+            executor.execute(worker);
         }
-    
+    }
 
+    private void runClient() throws IOException, InterruptedException {
+        String line = buffer.readLine();
+
+        // assign tasks to thread as long as data in the queue
+        while(line != null){
+            Thread.sleep(1000);           
+            WorkerThread worker = new WorkerThread(line);  //create the worker thread
+                       
+            executor.execute(worker);   //execute the worker thread
+                        
+            line = buffer.readLine();
+        }
+
+        executor.shutdown(); //initiates shutdown in which previously submitted tasks are executed, but no new tasks will be accepted
+    
+        //Blocks until all tasks have completed execution after a shutdown request, 
+        //or the timeout occurs, or the current thread is interrupted, whichever happens first
+        executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
+
+        System.out.println("All tasks done!");
+
+        return;
+    }
+
+    public void run() {
+        try {
+            if(isServer) 
+                runServer();
+            else
+                runClient();
+        }
+        catch(InterruptedException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
